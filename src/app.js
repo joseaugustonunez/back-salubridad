@@ -27,7 +27,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Habilitar CORS para permitir solicitudes desde el frontend
 app.use(cors({
-  origin: 'https://147.93.70.231', // Your frontend URL
+  origin: 'https://establecimientosmda.sistemasudh.com', // Your frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE','OPTIONS','PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'headers'] // Include 'headers' here
 }));

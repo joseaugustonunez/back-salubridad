@@ -38,7 +38,7 @@ export const requestPasswordRecovery = async (req, res) => {
     await user.save();
 
     // URL para restablecer contraseña (ajusta según tu frontend)
-    const resetUrl = `http://localhost:5173/cambiar?token=${recoveryToken}`;
+    const resetUrl = `https://establecimientosmda.sistemasudh.com/cambiar?token=${recoveryToken}`;
 
     // Enviar email
     const mailOptions = {
