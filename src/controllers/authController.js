@@ -202,31 +202,36 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Verificar si el correo electrónico existe
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    // Verificar si la contraseña es válida
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    // Generar un token de acceso
-    const accessToken = jwt.sign({ userId: user._id }, config.secretKey);
+    // Obtener el secret de la variable de entorno
+    const secretKey = process.env.JWT_SECRET;
+    if (!secretKey) {
+      console.error('JWT_SECRET no está definido en el entorno');
+      return res.status(500).json({ message: 'Error de configuración del servidor' });
+    }
 
-    // Excluir la contraseña antes de devolver los datos del usuario
+    // Generar token de acceso
+    const accessToken = jwt.sign({ userId: user._id }, secretKey, { expiresIn: '1h' });
+
     const { password: userPassword, ...userData } = user.toObject();
 
-    // Enviar la respuesta con el token y los datos del usuario
     res.status(200).json({
       accessToken,
-      user: userData, // Incluye los datos del usuario en la respuesta
+      user: userData,
     });
+
   } catch (error) {
-    console.error(error);
+    console.error('Error en login:', error);
     res.status(500).json({ message: 'Ha ocurrido un error al iniciar sesión' });
   }
 };
+
