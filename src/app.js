@@ -24,15 +24,13 @@ app.use(express.urlencoded({ extended: true }));
 // Servir archivos estáticos (imágenes)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// CORS dinámico para múltiples orígenes
 const allowedOrigins = [
-  'http://localhost:5173', // desarrollo
-  'https://establecimientosmda.sistemasudh.com' // producción
+  'http://localhost:5173',
+  'https://establecimientosmda.sistemasudh.com'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // permitir requests sin origin (Postman, curl)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -40,12 +38,11 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true // si usas cookies o tokens
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','OPTIONS','PATCH'],
+  allowedHeaders: ['Content-Type','Authorization']
 }));
 
-// Manejar preflight requests para todos los endpoints
 app.options('*', cors());
 
 // Configurar rutas
