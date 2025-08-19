@@ -1,0 +1,31 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": [
+    "Node.js",
+    "Express",
+    "MongoDB"
+  ],
+  "author": "Jose Augusto Nuñez Vicente",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.13.0",
+    "multer": "^1.4.5-lts.2",
+    "nodemailer": "^6.10.1",
+    "nodemon": "^3.1.9"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
