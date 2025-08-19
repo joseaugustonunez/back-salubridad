@@ -1,4 +1,3 @@
 export default {
-    mongoURI: 'mongodb://localhost:27017/proyectodb',
-    secretKey: 'clave_secreta_para_jsonwebtoken'
+    mongoURI: 'mongodb://atlas-sql-68a499cf74ce1e7449938a85-nvwacj.a.query.mongodb.net/sample_mflix?ssl=true&authSource=admin',
   };
