@@ -1,5 +1,3 @@
-//https://accounts.google.com/v3/signin/challenge/pwd?TL=ADBLaQCheWmgZqc92vbErNUOKKQhubSZdv03Z75CvsJwqknLzOVW1wcZ3ikQ7iFq&cid=2&continue=https%3A%2F%2Fmyaccount.google.com%2Fapppasswords&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fapppasswords&ifkv=AXH0vVuQi4VicI21s7cUL7N7dpokooKgzGNbzFiTj9mgu6q9EtrdDAAae8vHm0Kt61bQHdea2AemMQ&osid=1&rart=ANgoxce5FjPdP9Am7L8qfS0FX96YvNA_JAKpPh-N2ivSWpzEUfLcsyKqZuiTcWNTwlV3p_xWzy6927KUQNO3EJfE8rsx7B_bxk52gBXF0wOwV19gy1jpFCk&rpbg=1&service=accountsettings
-// Función para solicitar recuperación de contraseña
 // Función para solicitar recuperación de contraseña
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -7,14 +5,9 @@ import config from '../config.js';
 import User from '../models/userModel.js';
 import nodemailer from 'nodemailer';
 
-// VARIABLES HARDCODEADAS (TEMPORAL - MOVER A .env DESPUÉS)
-const HARDCODED_JWT_SECRET = 'mitokenjose';
-const HARDCODED_EMAIL_USER = 'joseaugustonunezvicente@gmail.com';
-const HARDCODED_EMAIL_PASSWORD = 'vdwz zhuz eyhn pipk';
-
 const getSecretKey = () => {
-  // Primero intenta obtener de config, si no existe usa hardcoded
-  const secret = config?.secretKey || process.env.JWT_SECRET || HARDCODED_JWT_SECRET;
+  // Ahora usa directamente config.secretKey que ya tiene fallback
+  const secret = config?.secretKey;
   if (!secret || typeof secret !== 'string' || !secret.trim()) {
     return null;
   }
@@ -22,8 +15,9 @@ const getSecretKey = () => {
 };
 
 const ensureMailerReady = () => {
-  const user = process.env.EMAIL_USER || HARDCODED_EMAIL_USER;
-  const pass = process.env.EMAIL_PASSWORD || HARDCODED_EMAIL_PASSWORD;
+  // Usa config que ya tiene fallback a hardcoded
+  const user = config.emailUser;
+  const pass = config.emailPassword;
   if (!user || !pass) return null;
 
   return nodemailer.createTransport({
@@ -79,7 +73,7 @@ export const requestPasswordRecovery = async (req, res) => {
       console.error('EMAIL_USER/EMAIL_PASSWORD no configurados. No se pudo enviar el correo de recuperación.');
     } else {
       const mailOptions = {
-        from: process.env.EMAIL_USER || HARDCODED_EMAIL_USER,
+        from: config.emailUser,
         to: user.email,
         subject: 'Recuperación de contraseña',
         html: `
