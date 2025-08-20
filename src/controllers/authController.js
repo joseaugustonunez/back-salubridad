@@ -1,3 +1,6 @@
+//https://accounts.google.com/v3/signin/challenge/pwd?TL=ADBLaQCheWmgZqc92vbErNUOKKQhubSZdv03Z75CvsJwqknLzOVW1wcZ3ikQ7iFq&cid=2&continue=https%3A%2F%2Fmyaccount.google.com%2Fapppasswords&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fapppasswords&ifkv=AXH0vVuQi4VicI21s7cUL7N7dpokooKgzGNbzFiTj9mgu6q9EtrdDAAae8vHm0Kt61bQHdea2AemMQ&osid=1&rart=ANgoxce5FjPdP9Am7L8qfS0FX96YvNA_JAKpPh-N2ivSWpzEUfLcsyKqZuiTcWNTwlV3p_xWzy6927KUQNO3EJfE8rsx7B_bxk52gBXF0wOwV19gy1jpFCk&rpbg=1&service=accountsettings
+// Función para solicitar recuperación de contraseña
+// Función para solicitar recuperación de contraseña
 // Función para solicitar recuperación de contraseña
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -262,35 +265,42 @@ export const login = async (req, res) => {
   try {
     const SECRET = getSecretKey();
     if (!SECRET) {
-      console.error('JWT secretKey no configurado. Define JWT_SECRET y expórtalo en config.secretKey.');
-      return res.status(500).json({ message: 'Error de configuración del servidor' });
+      console.error("JWT secretKey no configurado. Define JWT_SECRET en config.js.");
+      return res.status(500).json({ message: "Error de configuración del servidor" });
     }
 
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ message: 'email y password son requeridos' });
+      return res.status(400).json({ message: "email y password son requeridos" });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
+      return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Credenciales inválidas' });
+      return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
-    const accessToken = jwt.sign({ userId: user._id }, SECRET, { expiresIn: '1h' });
+    // ✅ Tokens con expiración diferente
+    const accessToken = jwt.sign({ userId: user._id }, SECRET, { expiresIn: "15m" });
+    const refreshToken = jwt.sign({ userId: user._id }, SECRET, { expiresIn: "7d" });
+
+    // Guardamos el refreshToken en BD para poder invalidarlo
+    user.refreshToken = refreshToken;
+    await user.save();
 
     const { password: _pwd, ...userData } = user.toObject();
 
     return res.status(200).json({
       accessToken,
+      refreshToken,
       user: userData,
     });
   } catch (error) {
-    console.error('Error en login:', error);
-    return res.status(500).json({ message: 'Ha ocurrido un error al iniciar sesión' });
+    console.error("Error en login:", error);
+    return res.status(500).json({ message: "Ha ocurrido un error al iniciar sesión" });
   }
 };
