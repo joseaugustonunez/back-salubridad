@@ -1,5 +1,5 @@
 import User from '../models/userModel.js';
-
+import bcrypt from 'bcrypt';
 
 export const getUsers = async (req, res) => {
   try {
@@ -117,5 +117,34 @@ export const deleteUser = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Ha ocurrido un error al eliminar el usuario' });
+  }
+};
+
+export const updateUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    // validar rol permitido
+    const allowedRoles = ["admin", "vendedor", "usuario"];
+    if (!role || !allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "Rol inválido. Valores permitidos: admin, vendedor, usuario" });
+    }
+
+    // verificar que quien solicita sea administrador (suponiendo req.user aportado por authenticateToken)
+    if (!req.user || req.user.rol !== "admin") {
+      return res.status(403).json({ message: "Acceso denegado. Se requiere rol admin." });
+    }
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    user.rol = role;
+    await user.save();
+
+    res.status(200).json({ message: "Rol actualizado correctamente", user });
+  } catch (error) {
+    console.error("Error al actualizar rol:", error);
+    res.status(500).json({ message: "Error al actualizar el rol del usuario" });
   }
 };

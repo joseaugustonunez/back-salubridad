@@ -11,6 +11,7 @@ import establecimientoRoutes from "./routes/establecimientoRoutes.js";
 import comentarioRoutes from "./routes/comentarioRoutes.js";
 import notificacionRoutes from "./routes/notificacionRoutes.js";
 import promocionRoutes from "./routes/promocionRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -50,6 +51,7 @@ app.options('*', cors());
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/tipos', tipoRoutes);
+app.use('/chat', chatRoutes);
 app.use('/categorias', categoriaRoutes);
 app.use('/ubicaciones', ubicacionRoutes);
 app.use('/horarios', horarioRoutes);
