@@ -1,6 +1,6 @@
 
 import fetch from "node-fetch";
-import Establecimiento from "./models/establecimientoModel.js";
+import Establecimiento from '../models/establecimientoModel.js';
 export const procesarMensaje = async (req, res) => {
   try {
     const { message } = req.body;
