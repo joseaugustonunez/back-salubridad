@@ -123,23 +123,24 @@ export const deleteUser = async (req, res) => {
 export const updateUserRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body;
+    const { rol } = req.body; // 👈 en español
 
-    // validar rol permitido
-    const allowedRoles = ["admin", "vendedor", "usuario"];
-    if (!role || !allowedRoles.includes(role)) {
-      return res.status(400).json({ message: "Rol inválido. Valores permitidos: admin, vendedor, usuario" });
+    const allowedRoles = ["usuario", "administrador", "vendedor"];
+    if (!rol || !allowedRoles.includes(rol)) {
+      return res.status(400).json({
+        message: "Rol inválido. Valores permitidos: usuario, administrador, vendedor",
+      });
     }
 
-    // verificar que quien solicita sea administrador (suponiendo req.user aportado por authenticateToken)
-    if (!req.user || req.user.rol !== "admin") {
-      return res.status(403).json({ message: "Acceso denegado. Se requiere rol admin." });
+    // verificar que el que hace la petición sea administrador
+    if (!req.user || req.user.rol !== "administrador") {
+      return res.status(403).json({ message: "Acceso denegado. Se requiere rol administrador." });
     }
 
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
 
-    user.rol = role;
+    user.rol = rol;
     await user.save();
 
     res.status(200).json({ message: "Rol actualizado correctamente", user });

@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const establecimientoSchema = new mongoose.Schema({
   nombre: { type: String, required: true },
   descripcion: { type: String },
-  creador: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // 👈 nuevo campo
+  creador: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   ubicacion: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ubicacion' }],
   categoria: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Categoria' }],
   tipo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tipo' }],
@@ -23,7 +23,7 @@ const establecimientoSchema = new mongoose.Schema({
   comentarios: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Comentario', // Asegúrate de que este sea el nombre del modelo de comentarios
+      ref: 'Comentario',
     },
   ],
   likes: [
@@ -38,7 +38,9 @@ const establecimientoSchema = new mongoose.Schema({
     twitter: { type: String },
     youtube: { type: String },
     tiktok: { type: String },
-  }
+  },
+  // 🚀 CAMPO NUEVO PARA EMBEDDINGS
+  embedding: { type: [Number], default: [] }
 }, { timestamps: true });
 
 const Establecimiento = mongoose.model('Establecimiento', establecimientoSchema);
