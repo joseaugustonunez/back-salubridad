@@ -6,7 +6,7 @@ import Notificacion from '../models/notificacionModel.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-
+import mongoose from 'mongoose';
 // Obtener la ruta base del proyecto para operaciones con archivos
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,8 +49,6 @@ export const agregarImagenes = async (req, res) => {
     res.status(500).json({ message: 'Error al agregar imágenes', detalles: error.message });
   }
 };
-
-
 // Eliminar una imagen específica de un establecimiento
 export const eliminarImagen = async (req, res) => {
   try {
@@ -96,7 +94,6 @@ export const eliminarImagen = async (req, res) => {
     res.status(500).json({ message: 'Error al eliminar imagen', detalles: error.message });
   }
 };
-
 // Actualizar la imagen principal del establecimiento
 export const actualizarImagenPrincipal = async (req, res) => {
   try {
@@ -148,7 +145,6 @@ export const actualizarImagenPrincipal = async (req, res) => {
     res.status(500).json({ message: 'Error al actualizar imagen principal', detalles: error.message });
   }
 };
-
 // Actualizar la imagen de portada del establecimiento
 export const actualizarImagenPortada = async (req, res) => {
   try {
@@ -251,7 +247,6 @@ export const reordenarImagenes = async (req, res) => {
     res.status(500).json({ message: 'Error al reordenar imágenes', detalles: error.message });
   }
 };
-
 // Obtener todos los establecimientos
 export const getEstablecimientos = async (req, res) => {
   try {
@@ -327,7 +322,6 @@ export const getEstablecimientosAprobados = async (req, res) => {
     res.status(500).json({ message: "Error al obtener los establecimientos aprobados" });
   }
 };
-
 export const getEstablecimientoDelUsuario = async (req, res) => {
   try {
     const { usuarioId } = req.params;
@@ -370,7 +364,6 @@ export const getEstablecimientoDelUsuario = async (req, res) => {
     res.status(500).json({ message: "Error interno del servidor" });
   }
 };
-
 // Obtener un establecimiento por ID
 export const getEstablecimientoById = async (req, res) => {
   try {
@@ -418,10 +411,7 @@ export const getEstablecimientoById = async (req, res) => {
     res.status(500).json({ message: "Error al obtener el establecimiento" });
   }
 };
-
 // Crear un nuevo establecimiento
-
-
 export const createEstablecimiento = async (req, res) => {
   try {
     const {
@@ -524,10 +514,6 @@ export const createEstablecimiento = async (req, res) => {
     res.status(500).json({ error: 'Error al crear el establecimiento', detalles: error.message });
   }
 };
-
-
-
-
 // Actualizar un establecimiento existente
 export const updateEstablecimiento = async (req, res) => {
   try {
@@ -600,8 +586,6 @@ export const updateEstablecimiento = async (req, res) => {
     res.status(500).json({ message: 'Error al actualizar el establecimiento', detalles: error.message });
   }
 };
-
-
 export const buscarEstablecimientoPorNombre = async (req, res) => {
   try {
     // Extraemos el nombre de los parámetros de la query
@@ -633,7 +617,6 @@ export const buscarEstablecimientoPorNombre = async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor al buscar establecimientos" });
   }
 };
-
 // Eliminar un establecimiento
 export const deleteEstablecimiento = async (req, res) => {
   try {
@@ -649,11 +632,7 @@ export const deleteEstablecimiento = async (req, res) => {
     res.status(500).json({ message: 'Error al eliminar el establecimiento' });
   }
 };
-
 // Seguir un establecimiento
-import mongoose from 'mongoose';
-
-
 export const seguirEstablecimiento = async (req, res) => {
   try {
     const { id } = req.params; // ID del establecimiento
@@ -668,12 +647,21 @@ export const seguirEstablecimiento = async (req, res) => {
       return res.status(404).json({ message: 'Establecimiento no encontrado' });
     }
 
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Si ya lo sigue
     if (establecimiento.seguidores.includes(userId)) {
       return res.status(400).json({ message: 'Ya sigues este establecimiento' });
     }
 
+    // 🔹 Agregar relación en ambos lados
     establecimiento.seguidores.push(userId);
-    await establecimiento.save();
+    user.establecimientosSeguidos.push(id);
+
+    await Promise.all([establecimiento.save(), user.save()]);
 
     res.status(200).json({
       message: 'Has seguido el establecimiento',
@@ -681,16 +669,15 @@ export const seguirEstablecimiento = async (req, res) => {
       seguidores: establecimiento.seguidores.length,
     });
   } catch (error) {
-    console.error(error);
+    console.error('Error al seguir el establecimiento:', error);
     res.status(500).json({ message: 'Error al seguir el establecimiento' });
   }
 };
-
 // Dejar de seguir un establecimiento
 export const dejarDeSeguirEstablecimiento = async (req, res) => {
   try {
-    const { id } = req.params;
-    const userId = req.user.id;
+    const { id } = req.params; // ID del establecimiento
+    const userId = req.user.id; // ID del usuario autenticado
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: 'ID de usuario inválido' });
@@ -701,14 +688,20 @@ export const dejarDeSeguirEstablecimiento = async (req, res) => {
       return res.status(404).json({ message: 'Establecimiento no encontrado' });
     }
 
-    if (!establecimiento.seguidores.includes(userId)) {
-      return res.status(400).json({ message: 'No sigues este establecimiento' });
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
     establecimiento.seguidores = establecimiento.seguidores.filter(
-      (user) => user.toString() !== userId
+      seguidorId => seguidorId.toString() !== userId
     );
-    await establecimiento.save();
+
+    user.establecimientosSeguidos = user.establecimientosSeguidos.filter(
+      estId => estId.toString() !== id
+    );
+
+    await Promise.all([establecimiento.save(), user.save()]);
 
     res.status(200).json({
       message: 'Has dejado de seguir el establecimiento',
@@ -716,7 +709,7 @@ export const dejarDeSeguirEstablecimiento = async (req, res) => {
       seguidores: establecimiento.seguidores.length,
     });
   } catch (error) {
-    console.error(error);
+    console.error('Error al dejar de seguir:', error);
     res.status(500).json({ message: 'Error al dejar de seguir el establecimiento' });
   }
 };

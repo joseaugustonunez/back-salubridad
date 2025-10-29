@@ -64,7 +64,7 @@ router.put('/:id/imagen-portada', authenticateToken, upload.single('portada'), a
 
 // Ruta para reordenar las imágenes de un establecimiento
 router.put('/:id/reordenar-imagenes', authenticateToken, reordenarImagenes);
-// ❤️ Rutas para dar / quitar like a un establecimiento
+//  Rutas para dar / quitar like a un establecimiento
 router.post('/:id/like', authenticateToken, likeEstablecimiento);
 router.post('/:id/quitar-like', authenticateToken, quitarLikeEstablecimiento);
 router.put('/:id/verificado', async (req, res) => {

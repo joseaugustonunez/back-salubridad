@@ -1,29 +1,48 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  nombreUsuario: { type: String, required: true, unique: true },
-  fotoPerfil: { type: String },
-  fotoPortada: { type: String },
-  establecimientosLikes: [
-    { type: mongoose.Schema.Types.ObjectId, ref: 'Establecimiento' }
-  ],
-  establecimientosCreados: [ // 👈 nuevo campo opcional
-    { type: mongoose.Schema.Types.ObjectId, ref: 'Establecimiento' }
-  ],
-  bio: { type: String },
-  fechaCreacion: { type: Date, default: Date.now },
-  rol: { 
-    type: String, 
-    enum: ['usuario', 'administrador', 'vendedor'],
-    default: 'usuario',
-    required: true 
+const userSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    nombreUsuario: { type: String, required: true, unique: true },
+    fotoPerfil: { type: String },
+    fotoPortada: { type: String },
+
+    // Establecimientos que el usuario dio like
+    establecimientosLikes: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Establecimiento" },
+    ],
+
+    // Establecimientos creados por el usuario
+    establecimientosCreados: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Establecimiento" },
+    ],
+
+    // 👇 Nuevo campo: establecimientos que el usuario sigue
+    establecimientosSeguidos: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Establecimiento" },
+    ],
+
+    bio: { type: String },
+    fechaCreacion: { type: Date, default: Date.now },
+    solicitudVendedor: {
+      type: String,
+      enum: ["pendiente", "aprobada", "rechazada", null],
+      default: null,
+    },
+
+    rol: {
+      type: String,
+      enum: ["usuario", "administrador", "vendedor"],
+      default: "usuario",
+      required: true,
+    },
+    recoveryToken: { type: String },
+    recoveryTokenExpires: { type: Date },
   },
-  recoveryToken: { type: String },
-recoveryTokenExpires: { type: Date }
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 export default User;

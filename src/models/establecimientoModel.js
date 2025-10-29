@@ -32,6 +32,9 @@ const establecimientoSchema = new mongoose.Schema({
   seguidores: [
     { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   ],
+  promociones: [
+  { type: mongoose.Schema.Types.ObjectId, ref: 'Promocion' }
+],
   redesSociales: {
     facebook: { type: String },
     instagram: { type: String },

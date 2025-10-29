@@ -10,7 +10,8 @@ const promocionSchema = new mongoose.Schema({
   estado: { type: String, enum: ['activa', 'inactiva', 'expirada'], default: 'activa' },
   descuento: { type: Number, required: true, min: 0, max: 100 }, // Porcentaje de descuento
   imagen: { type: String }, // URL de la imagen de la promoción
-  establecimiento: { type: mongoose.Schema.Types.ObjectId, ref: 'Establecimiento', required: true } // Relación con establecimiento
+  establecimiento: { type: mongoose.Schema.Types.ObjectId, ref: 'Establecimiento', required: true }
+
 }, {
   timestamps: true // Agrega createdAt y updatedAt automáticamente
 });

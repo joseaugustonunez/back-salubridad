@@ -28,40 +28,36 @@ export const getPromocionById = async (req, res) => {
   }
 };
 
-
-
 // Crear una nueva promoción
 export const createPromocion = async (req, res) => {
   try {
     const { nombre, descripcion, fechaInicio, fechaFin, condiciones, descuento } = req.body;
-
-    // Obtener el usuario autenticado
     const userId = req.user?._id;
 
-    // Verificar si el usuario tiene establecimientos creados
+    // 1️⃣ Obtener el ID del establecimiento
     const establecimientoId = req.user?.establecimientosCreados?.[0];
     if (!establecimientoId) {
       return res.status(400).json({ message: "El usuario no tiene establecimientos creados" });
     }
 
-    // Buscar el establecimiento por ID
+    // 2️⃣ Buscar el establecimiento
     const establecimiento = await Establecimiento.findById(establecimientoId);
     if (!establecimiento) {
       return res.status(404).json({ message: "No se encontró un establecimiento para este usuario" });
     }
 
-    // Verificar las fechas
+    // 3️⃣ Validar fechas
     if (!fechaInicio || !fechaFin || new Date(fechaInicio) > new Date(fechaFin)) {
       return res.status(400).json({ message: "Las fechas de la promoción no son válidas" });
     }
 
-    // Manejar la imagen
+    // 4️⃣ Imagen opcional
     let imagen = "";
     if (req.file) {
-      imagen = req.file.filename; // Nombre del archivo subido
+      imagen = req.file.filename;
     }
 
-    // Crear la promoción con el establecimiento asociado
+    // 5️⃣ Crear nueva promoción
     const newPromocion = new Promocion({
       nombre,
       descripcion,
@@ -73,14 +69,33 @@ export const createPromocion = async (req, res) => {
       establecimiento: establecimiento._id,
     });
 
-    // Guardar la promoción
-    await newPromocion.save();
-    res.status(201).json(newPromocion);
+    const promocionGuardada = await newPromocion.save();
+
+    // 6️⃣ Actualizar el establecimiento agregando SOLO el ID
+    await Establecimiento.findByIdAndUpdate(
+      establecimiento._id,
+      { $push: { promociones: promocionGuardada._id } }
+    );
+
+    // 7️⃣ Volver a consultar el establecimiento con solo los IDs de promociones
+    const establecimientoActualizado = await Establecimiento.findById(establecimiento._id)
+      .select("promociones")
+      .lean();
+
+    res.status(201).json({
+      message: "✅ Promoción creada correctamente",
+      promocionId: promocionGuardada._id,
+      promocionesIds: establecimientoActualizado.promociones, // 👈 Solo IDs
+    });
   } catch (error) {
-    console.error('Error al crear la promoción:', error.message);
-    res.status(500).json({ message: "Error al crear la promoción" });
+    console.error("Error al crear la promoción:", error.message);
+    res.status(500).json({ message: "Error al crear la promoción", error: error.message });
   }
 };
+
+
+
+
 
 // Actualizar una promoción
 export const updatePromocion = async (req, res) => {
