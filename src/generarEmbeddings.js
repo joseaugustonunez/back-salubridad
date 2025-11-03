@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import Establecimiento from "./models/establecimientoModel.js";
+import Categoria from "./models/categoriaModel.js";
+import Tipo from "./models/tipoModel.js";
 import 'dotenv/config';
 import { pipeline } from "@xenova/transformers";
 
@@ -11,21 +13,21 @@ import { pipeline } from "@xenova/transformers";
     await mongoose.connect(MONGO_URI);
     console.log("✅ Conectado a MongoDB");
 
-    // Buscar establecimientos sin embedding (SIN populate)
+    // Buscar establecimientos sin embedding (populate incluido)
     const establecimientos = await Establecimiento.find({
       $or: [
         { embedding: { $exists: false } },
         { embedding: [] },
         { embedding: null }
       ]
-    });
+    })
+      .populate("categoria", "nombre")
+      .populate("tipo", "nombre");
 
     if (!establecimientos.length) {
       console.log("✅ Todos los establecimientos ya tienen embeddings.");
-      
       const total = await Establecimiento.countDocuments({});
       console.log(`📊 Total de establecimientos en BD: ${total}`);
-      
       await mongoose.disconnect();
       process.exit(0);
     }
@@ -38,30 +40,44 @@ import { pipeline } from "@xenova/transformers";
     console.log("✅ Modelo cargado");
 
     let procesados = 0;
+
     for (const e of establecimientos) {
-      // Construir texto descriptivo (sin categoría ya que no la populamos)
-      const text = `${e.nombre} ${e.descripcion || ""}`.trim();
+      // ✅ Manejo robusto de categorías
+      const categoriasText = Array.isArray(e.categoria)
+        ? e.categoria.map(c => c.nombre).join(" ")
+        : e.categoria?.nombre || "";
+
+      // ✅ Manejo robusto de tipos
+      const tiposText = Array.isArray(e.tipo)
+        ? e.tipo.map(t => t.nombre).join(" ")
+        : e.tipo?.nombre || "";
+
+      // ✅ Construir texto completo para el embedding
+      const text = `${e.nombre} ${e.descripcion || ""} ${categoriasText} ${tiposText}`.trim();
 
       console.log(`📝 Procesando: ${e.nombre}`);
-      
-      // Generar embedding
+      console.log(`   📂 Categorías: ${categoriasText || "ninguna"}`);
+      console.log(`   🏷️ Tipos: ${tiposText || "ninguno"}`);
+      console.log(`   📄 Texto completo: "${text}"`);
+
+      // ✅ Generar embedding
       const embeddingResult = await embedder(text);
-      
-      // Extraer correctamente el vector
       const embeddingArray = Array.from(embeddingResult[0][0]);
-      
-      // Guardar el embedding
-      e.embedding = embeddingArray;
-      await e.save();
-      
+
+      // ✅ Guardar embedding
+      await Establecimiento.updateOne(
+        { _id: e._id },
+        { $set: { embedding: embeddingArray } }
+      );
+
       procesados++;
-      console.log(`✅ [${procesados}/${establecimientos.length}] Embedding guardado para: ${e.nombre} (dim: ${embeddingArray.length})`);
+      console.log(`✅ [${procesados}/${establecimientos.length}] Embedding guardado para: ${e.nombre}\n`);
     }
 
     console.log(`\n🎉 Proceso completado exitosamente`);
     console.log(`📊 Establecimientos procesados: ${procesados}`);
-    
-    // Verificar que se guardaron correctamente
+
+    // Verificación final
     const conEmbedding = await Establecimiento.countDocuments({
       embedding: { $exists: true, $ne: [], $ne: null }
     });

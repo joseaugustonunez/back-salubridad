@@ -3,6 +3,8 @@ import User from '../models/userModel.js';
 import Ubicacion from '../models/ubicacionModel.js';
 import Horario from '../models/horarioModel.js';
 import Notificacion from '../models/notificacionModel.js';
+import Tipo from '../models/tipoModel.js';  
+import Categoria from '../models/categoriaModel.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -843,3 +845,39 @@ export const cambiarEstado = async (id, nuevoEstado) => {
     throw new Error('Error al cambiar el estado del establecimiento: ' + error.message);
   }
 };
+export const buscarEstablecimientos = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    console.log("🔍 Término de búsqueda recibido:", q);
+
+    if (!q || q.trim() === "") {
+      return res.status(400).json({ message: "El parámetro 'q' es requerido" });
+    }
+
+    const regex = new RegExp(q, "i");
+
+    const establecimientos = await Establecimiento.find({
+      $or: [
+        { nombre: regex },
+        { "categoria.nombre": regex },
+        { "tipo.tipo_nombre": regex },
+      ],
+    })
+      .populate("categoria")
+      .populate("tipo")
+      .lean();
+
+    console.log("✅ Resultados encontrados:", establecimientos.length);
+
+    if (!establecimientos || establecimientos.length === 0) {
+      return res.status(404).json({ message: "No se encontraron resultados" });
+    }
+
+    return res.status(200).json(establecimientos);
+  } catch (error) {
+    console.error("❌ Error en la búsqueda:", error.message);
+    return res.status(500).json({ message: "Error interno del servidor al buscar" });
+  }
+};
+// ...existing code...

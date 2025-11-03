@@ -146,6 +146,12 @@ export const updateUserRole = async (req, res) => {
     if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
 
     user.rol = rol;
+
+    // Si el rol queda como 'vendedor', marcar la solicitud como aprobada
+    if (rol === "vendedor") {
+      user.solicitudVendedor = "aprobada";
+    }
+
     await user.save();
 
     res.status(200).json({ message: "Rol actualizado correctamente", user });
@@ -311,5 +317,109 @@ export const solicitarVendedor = async (req, res) => {
   } catch (error) {
     console.error("Error al solicitar vendedor:", error.message);
     res.status(500).json({ message: "Error al enviar solicitud" });
+  }
+};
+export const getUserTotals = async (req, res) => {
+  try {
+    const userId = req.user?._id || req.params.id;
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "ID de usuario inválido" });
+    }
+
+    // Promesas paralelas: contar comentarios y obtener campos relevantes del usuario
+    const totalComentariosPromise = Comentario
+      ? Comentario.countDocuments({ usuario: userId })
+      : Promise.resolve(0);
+
+    const userPromise = User.findById(userId)
+      .select("establecimientosSeguidos seguidores")
+      .lean();
+
+    const [totalComentarios, user] = await Promise.all([totalComentariosPromise, userPromise]);
+
+    const totalEstablecimientosSeguidos = user && Array.isArray(user.establecimientosSeguidos)
+      ? user.establecimientosSeguidos.length
+      : 0;
+
+    let seguidoresCount = 0;
+    let seguidoresArray = [];
+    if (user) {
+      if (Array.isArray(user.seguidores)) {
+        seguidoresCount = user.seguidores.length;
+        seguidoresArray = user.seguidores;
+      } else {
+        seguidoresCount = Number(user.seguidores) || 0;
+      }
+    }
+
+    // Devolvemos varias claves para compatibilidad con frontend
+    return res.status(200).json({
+      totalComentarios, // usado como "interacciones" en frontend
+      totalEstablecimientosSeguidos,
+      siguiendo: totalEstablecimientosSeguidos, // alias
+      interacciones: totalComentarios, // alias
+      seguidoresCount,
+      seguidores: seguidoresArray,
+    });
+  } catch (error) {
+    console.error("Error en getUserTotals:", error);
+    return res.status(500).json({ message: "Error al obtener totales del usuario" });
+  }
+};
+export const getSeguidoresVendedor = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "ID de usuario inválido" });
+    }
+
+    const user = await User.findById(userId).select("seguidores").lean();
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    // seguidores puede ser arreglo de ids o cantidad según modelo
+    const seguidoresArray = Array.isArray(user.seguidores) ? user.seguidores : [];
+    const total = Array.isArray(user.seguidores)
+      ? user.seguidores.length
+      : Number(user.seguidores) || 0;
+
+    return res.status(200).json({ total, seguidores: seguidoresArray });
+  } catch (error) {
+    console.error("Error en getSeguidoresVendedor:", error);
+    return res.status(500).json({ message: "Error al obtener seguidores" });
+  }
+};
+
+export const getComentariosRecibidos = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "ID de usuario inválido" });
+    }
+
+    // Obtener los establecimientos creados por el vendedor
+    const user = await User.findById(userId).select("establecimientosCreados").lean();
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+
+    const establecimientosIds = Array.isArray(user.establecimientosCreados)
+      ? user.establecimientosCreados
+      : [];
+
+    if (establecimientosIds.length === 0) {
+      return res.status(200).json({ total: 0, comentarios: [] });
+    }
+
+    // Obtener comentarios que pertenezcan a cualquiera de esos establecimientos
+    const comentarios = await Comentario.find({
+      establecimiento: { $in: establecimientosIds },
+    })
+      .populate("usuario", "nombreUsuario fotoPerfil")
+      .populate("establecimiento", "nombre")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({ total: comentarios.length, comentarios });
+  } catch (error) {
+    console.error("Error en getComentariosRecibidos:", error);
+    return res.status(500).json({ message: "Error al obtener comentarios recibidos" });
   }
 };
