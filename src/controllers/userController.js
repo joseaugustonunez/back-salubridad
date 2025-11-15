@@ -326,44 +326,51 @@ export const getUserTotals = async (req, res) => {
       return res.status(400).json({ message: "ID de usuario inválido" });
     }
 
-    // Promesas paralelas: contar comentarios y obtener campos relevantes del usuario
-    const totalComentariosPromise = Comentario
-      ? Comentario.countDocuments({ usuario: userId })
-      : Promise.resolve(0);
-
-    const userPromise = User.findById(userId)
-      .select("establecimientosSeguidos seguidores")
+    // Obtener establecimientos creados por el usuario
+    const establecimientos = await Establecimiento.find({ creador: userId })
+      .select("_id likes seguidores")
       .lean();
 
-    const [totalComentarios, user] = await Promise.all([totalComentariosPromise, userPromise]);
+    const establecimientoIds = establecimientos.map((e) => e._id);
 
-    const totalEstablecimientosSeguidos = user && Array.isArray(user.establecimientosSeguidos)
-      ? user.establecimientosSeguidos.length
+    // Comentarios recibidos en los establecimientos del vendedor
+    const totalComentariosRecibidos = Comentario
+      ? await Comentario.countDocuments({ establecimiento: { $in: establecimientoIds } })
       : 0;
 
-    let seguidoresCount = 0;
-    let seguidoresArray = [];
-    if (user) {
-      if (Array.isArray(user.seguidores)) {
-        seguidoresCount = user.seguidores.length;
-        seguidoresArray = user.seguidores;
-      } else {
-        seguidoresCount = Number(user.seguidores) || 0;
-      }
-    }
+    // Sumar likes de todos los establecimientos del usuario
+    const totalLikes = establecimientos.reduce((sum, e) => {
+      return sum + (Array.isArray(e.likes) ? e.likes.length : 0);
+    }, 0);
 
-    // Devolvemos varias claves para compatibilidad con frontend
+    // Contar seguidores: combinar seguidores en user.seguidores y seguidores por establecimiento (unique)
+    const userDoc = await User.findById(userId).select("seguidores establecimientosSeguidos").lean();
+    const seguidoresSet = new Set();
+    if (userDoc) {
+      if (Array.isArray(userDoc.seguidores)) userDoc.seguidores.forEach((s) => seguidoresSet.add(String(s)));
+    }
+    establecimientos.forEach((e) => {
+      if (Array.isArray(e.seguidores)) e.seguidores.forEach((s) => seguidoresSet.add(String(s)));
+    });
+    const seguidoresCount = seguidoresSet.size;
+
+    const totalEstablecimientosSeguidos = userDoc && Array.isArray(userDoc.establecimientosSeguidos)
+      ? userDoc.establecimientosSeguidos.length
+      : 0;
+
     return res.status(200).json({
-      totalComentarios, // usado como "interacciones" en frontend
-      totalEstablecimientosSeguidos,
-      siguiendo: totalEstablecimientosSeguidos, // alias
-      interacciones: totalComentarios, // alias
+      totalComentariosRecibidos,
+      totalLikes,
       seguidoresCount,
-      seguidores: seguidoresArray,
+      totalEstablecimientosSeguidos,
+      // alias para compatibilidad
+      totalComentarios: totalComentariosRecibidos,
+      siguiendo: totalEstablecimientosSeguidos,
+      interacciones: totalComentariosRecibidos,
     });
   } catch (error) {
     console.error("Error en getUserTotals:", error);
-    return res.status(500).json({ message: "Error al obtener totales del usuario" });
+    return res.status(500).json({ message: "Error al obtener totales del usuario", detalles: error.message });
   }
 };
 export const getSeguidoresVendedor = async (req, res) => {

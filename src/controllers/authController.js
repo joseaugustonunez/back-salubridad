@@ -229,10 +229,11 @@ export const register = async (req, res) => {
       return res.status(500).json({ message: 'Error de configuración del servidor' });
     }
 
-    const { email, password, nombreUsuario } = req.body;
+    const { email, password, nombreUsuario, nombres, apellidos } = req.body;
 
-    if (!email || !password || !nombreUsuario) {
-      return res.status(400).json({ message: 'email, password y nombreUsuario son requeridos' });
+    // Validar campos nuevos
+    if (!email || !password || !nombreUsuario || !nombres || !apellidos) {
+      return res.status(400).json({ message: 'email, password, nombreUsuario, nombres y apellidos son requeridos' });
     }
 
     const existingUser = await User.findOne({ email });
@@ -246,7 +247,13 @@ export const register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ email, password: hashedPassword, nombreUsuario });
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      nombreUsuario,
+      nombres,
+      apellidos,
+    });
     await newUser.save();
 
     const accessToken = jwt.sign({ userId: newUser._id }, SECRET, { expiresIn: '1h' });
@@ -269,12 +276,13 @@ export const login = async (req, res) => {
       return res.status(500).json({ message: "Error de configuración del servidor" });
     }
 
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ message: "email y password son requeridos" });
+    // ahora recibimos nombreUsuario en vez de email
+    const { nombreUsuario, password } = req.body;
+    if (!nombreUsuario || !password) {
+      return res.status(400).json({ message: "nombreUsuario y password son requeridos" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ nombreUsuario });
     if (!user) {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
@@ -284,11 +292,9 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
-    // ✅ Tokens con expiración diferente
     const accessToken = jwt.sign({ userId: user._id }, SECRET, { expiresIn: "15m" });
     const refreshToken = jwt.sign({ userId: user._id }, SECRET, { expiresIn: "7d" });
 
-    // Guardamos el refreshToken en BD para poder invalidarlo
     user.refreshToken = refreshToken;
     await user.save();
 

@@ -4,6 +4,11 @@ const userSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+
+    // Nuevos campos: nombres y apellidos (sevalidan en el controlador de register)
+    nombres: { type: String }, 
+    apellidos: { type: String },
+
     nombreUsuario: { type: String, required: true, unique: true },
     fotoPerfil: { type: String },
     fotoPortada: { type: String },
