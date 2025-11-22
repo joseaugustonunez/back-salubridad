@@ -1,12 +1,9 @@
-//https://accounts.google.com/v3/signin/challenge/pwd?TL=ADBLaQCheWmgZqc92vbErNUOKKQhubSZdv03Z75CvsJwqknLzOVW1wcZ3ikQ7iFq&cid=2&continue=https%3A%2F%2Fmyaccount.google.com%2Fapppasswords&flowName=GlifWebSignIn&followup=https%3A%2F%2Fmyaccount.google.com%2Fapppasswords&ifkv=AXH0vVuQi4VicI21s7cUL7N7dpokooKgzGNbzFiTj9mgu6q9EtrdDAAae8vHm0Kt61bQHdea2AemMQ&osid=1&rart=ANgoxce5FjPdP9Am7L8qfS0FX96YvNA_JAKpPh-N2ivSWpzEUfLcsyKqZuiTcWNTwlV3p_xWzy6927KUQNO3EJfE8rsx7B_bxk52gBXF0wOwV19gy1jpFCk&rpbg=1&service=accountsettings
-// Función para solicitar recuperación de contraseña
-// Función para solicitar recuperación de contraseña
-// Función para solicitar recuperación de contraseña
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import config from '../config.js';
 import User from '../models/userModel.js';
 import nodemailer from 'nodemailer';
+import { OAuth2Client } from "google-auth-library";
 
 const getSecretKey = () => {
   // Ahora usa directamente config.secretKey que ya tiene fallback
@@ -202,22 +199,25 @@ export const verifyRecoveryToken = async (req, res) => {
     return res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
-
-// ==============================
-// Obtener usuario autenticado
-// ==============================
-export const obtenerUsuarioAutenticado = (req, res) => {
+export const obtenerUsuarioAutenticado = async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'No autorizado' });
     }
-    return res.status(200).json(req.user);
+    
+    // Buscar el usuario completo en la base de datos
+    const usuario = await User.findById(req.user.userId).select('-password -refreshToken -recoveryToken -recoveryTokenExpires');
+    
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    return res.status(200).json(usuario);
   } catch (error) {
     console.error('Error al obtener el usuario autenticado:', error);
     return res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
-
 // ==============================
 // Registro
 // ==============================
@@ -308,5 +308,76 @@ export const login = async (req, res) => {
   } catch (error) {
     console.error("Error en login:", error);
     return res.status(500).json({ message: "Ha ocurrido un error al iniciar sesión" });
+  }
+};
+
+export const googleSignIn = async (req, res) => {
+  try {
+    const idToken = req.body.idToken || req.body.token;
+    if (!idToken) return res.status(400).json({ message: "idToken requerido" });
+
+    // Lee client id desde env (usa tu id_cliente si ya está)
+    const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ;
+    if (!GOOGLE_CLIENT_ID) {
+      console.error("GOOGLE_CLIENT_ID no configurado en .env");
+      return res.status(500).json({ message: "Configuración del servidor incompleta" });
+    }
+
+    const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = payload.email;
+    const email_verified = payload.email_verified;
+    const name = payload.name;
+    const picture = payload.picture;
+
+    if (!email || !email_verified) {
+      return res.status(400).json({ message: "Email no verificado por Google" });
+    }
+
+    // Buscar usuario por email o crearlo
+    let user = await User.findOne({ email });
+    if (!user) {
+      // generar nombre de usuario a partir del email y asegurar unicidad
+      const base = email.split("@")[0].replace(/[^a-z0-9]/gi, "").toLowerCase() || "user";
+      let nombreUsuario = base;
+      let i = 0;
+      while (await User.findOne({ nombreUsuario })) {
+        i++;
+        nombreUsuario = `${base}${i}`;
+      }
+
+      const randomPwd = Math.random().toString(36).slice(2);
+      const hashedPassword = await bcrypt.hash(randomPwd, 10);
+
+      user = new User({
+        email,
+        nombreUsuario,
+        nombres: name || "",
+        fotoPerfil: picture,
+        password: hashedPassword,
+        // marca opcional que viene de google
+        proveedor: "google",
+      });
+      await user.save();
+    }
+
+    const SECRET = getSecretKey();
+    if (!SECRET) return res.status(500).json({ message: "Error de configuración" });
+
+    const accessToken = jwt.sign({ userId: user._id }, SECRET, { expiresIn: "15m" });
+    const refreshToken = jwt.sign({ userId: user._id }, SECRET, { expiresIn: "7d" });
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    const { password: _pwd, ...userData } = user.toObject();
+    return res.status(200).json({ accessToken, refreshToken, user: userData });
+  } catch (err) {
+    console.error("googleSignIn error:", err);
+    return res.status(500).json({ message: "Error en autenticación con Google" });
   }
 };
